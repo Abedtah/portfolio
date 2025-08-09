@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Abed Taha — Interactive Portfolio</title>
+  <meta name="description" content="Interactive, smooth, mouse‑reactive portfolio for Abed Taha." />
+  <style>
+    /* =========================
+       Design Tokens
+    ========================= */
+    :root{
+      --bg: 12 12 16;           /* base background */
+      --panel: 24 24 32;        /* cards */
+      --text: 240 240 245;      /* text */
+      --muted: 160 160 180;     /* secondary text */
+      --accent: 110 203 255;    /* cyan */
+      --accent2: 190 120 255;   /* violet */
+      --ring: 255 255 255;      /* focus outlines */
+      --radius: 18px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg: 250 250 255;
+        --panel: 255 255 255;
+        --text: 15 18 26;
+        --muted: 90 95 110;
+        --accent: 12 115 255;
+        --accent2: 255 80 180;
+        --shadow: 0 10px 25px rgba(0,0,0,.08);
+      }
+      .blob{ mix-blend-mode: multiply; filter: blur(35px) saturate(120%); }
+    }
+
+    *{ box-sizing: border-box }
+    html,body{ height:100% }
+    body{
+      margin:0; color: rgb(var(--text)); background: rgb(var(--bg));
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      overflow-x:hidden; scroll-behavior:smooth;
+    }
+
+    /* Background gradient & canvas */
+    .backdrop{
+      position: fixed; inset: 0; pointer-events: none; z-index: -2;
+      background:
+        radial-gradient(1200px 800px at 10% -10%, rgba(110,203,255,.18), transparent 60%),
+        radial-gradient(1000px 700px at 110% 0%, rgba(190,120,255,.16), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.07));
+    }
+    canvas#particles{ position:fixed; inset:0; z-index:-1; pointer-events:none; }
+
+    header{
+      position: sticky; top:0; z-index:50; backdrop-filter: blur(12px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background: linear-gradient(to bottom, rgba(20,20,28,.6), rgba(20,20,28,.2));
+    }
+    .nav{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding: 14px 20px;
+    }
+    .nav a{
+      color: rgb(var(--text)); text-decoration:none; opacity:.85; margin:0 10px; font-weight:600; letter-spacing:.2px;
+    }
+    .nav a:hover{ opacity:1 }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.4px; }
+    .brand .dot{ width:10px; height:10px; border-radius:999px; background: conic-gradient(from 0deg, rgb(var(--accent)), rgb(var(--accent2))); box-shadow: 0 0 18px rgba(110,203,255,.8) }
+
+    main{ max-width:1200px; margin:0 auto; padding: 48px 20px 80px; }
+
+    /* Hero */
+    .hero{
+      display:grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items:center; min-height: 72vh;
+    }
+    @media (max-width: 980px){ .hero{ grid-template-columns:1fr; padding-top: 30px; } }
+
+    .title{ font-size: clamp(34px, 6vw, 64px); line-height:1.05; margin: 0 0 10px; font-weight: 900; letter-spacing:-.5px; }
+    .subtitle{ color: rgb(var(--muted)); margin:0 0 28px; font-size: clamp(18px, 3vw, 22px); }
+
+    .cta{ display:flex; gap:14px; flex-wrap:wrap }
+    .btn{
+      position:relative; isolation:isolate; border:none; cursor:pointer; font-weight:800; letter-spacing:.3px;
+      padding:14px 18px; border-radius: 999px; transform: translateZ(0);
+      transition: transform .2s ease-out, box-shadow .2s ease-out;
+      box-shadow: var(--shadow);
+    }
+    .btn.primary{
+      background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent2)));
+      color:#0b0b11; text-shadow: 0 1px 0 rgba(255,255,255,.5);
+    }
+    .btn.ghost{ background: rgba(255,255,255,.06); color: rgb(var(--text)); border:1px solid rgba(255,255,255,.12); }
+    .btn:hover{ transform: translateY(-2px) }
+
+    /* Parallax image card */
+    .portrait{
+      height: 380px; border-radius: var(--radius); overflow:hidden; position:relative; transform-style: preserve-3d;
+      box-shadow: var(--shadow); background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    }
+    .portrait img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.85; filter:saturate(110%) contrast(105%); transform: translateZ(40px) scale(1.05); }
+    .portrait .overlay{ position:absolute; inset:0; background: radial-gradient(60% 60% at 70% 20%, rgba(110,203,255,.2), transparent 60%); mix-blend-mode: screen; }
+
+    /* Sections */
+    section{ margin-top: 80px }
+    h2{ font-size: clamp(28px, 3.6vw, 38px); margin:0 0 18px; letter-spacing:-.3px }
+    p.lead{ color: rgb(var(--muted)); max-width: 60ch; }
+
+    .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:18px }
+    @media (max-width: 900px){ .grid{ grid-template-columns: 1fr 1fr } }
+    @media (max-width: 640px){ .grid{ grid-template-columns: 1fr } }
+
+    .card{
+      background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius: var(--radius);
+      padding:18px; position:relative; overflow:hidden; transform-style: preserve-3d; will-change: transform;
+      transition: transform .18s ease, border-color .2s ease;
+    }
+    .card:hover{ border-color: rgba(255,255,255,.22) }
+    .card h3{ margin:0 0 8px }
+    .card p{ color: rgb(var(--muted)); margin:0 }
+    .badge{ display:inline-block; font-size:12px; opacity:.85; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.2); margin: 10px 6px 0 0 }
+
+    .skills{ display:flex; flex-wrap:wrap; gap:10px; margin-top: 12px }
+    .chip{ border:1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.05); padding:8px 12px; border-radius: 999px; font-weight:600; }
+
+    footer{ margin: 80px 0 20px; text-align:center; color: rgb(var(--muted)); font-size:14px }
+
+    /* Cursor blob (soft, smooth) */
+    .blob{
+      position: fixed; width: 220px; height:220px; border-radius: 50%; pointer-events:none; z-index: 5;
+      background: radial-gradient(circle at 30% 30%, rgba(110,203,255,.9), rgba(190,120,255,.8) 40%, rgba(0,0,0,0) 60%);
+      filter: blur(45px) saturate(140%);
+      mix-blend-mode: screen;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Focus styles */
+    :where(a, button, input, textarea, select):focus{ outline: 2px solid rgb(var(--ring)); outline-offset: 2px; border-radius: 6px }
+
+    /* Reduce motion safety */
+    @media (prefers-reduced-motion: reduce){
+      .blob{ display:none }
+      .portrait, .card{ transform: none !important }
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="blob" id="blob" aria-hidden="true"></div>
+
+  <header>
+    <nav class="nav">
+      <div class="brand"><span class="dot"></span> Abed Taha</div>
+      <div>
+        <a href="#about">About</a>
+        <a href="#projects">Projects</a>
+        <a href="#skills">Skills</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <h1 class="title parallax" data-depth="12">Hi, I'm Abed Taha.</h1>
+        <p class="subtitle parallax" data-depth="6">Computer Science @ Ben‑Gurion University. I build fast, clean systems — from OpenGL terrain viewers to kernel‑level synchronization and high‑performance networking.</p>
+        <div class="cta">
+          <button class="btn primary magnetic" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Hire me</button>
+          <a class="btn ghost magnetic" href="#projects">See projects</a>
+          <a class="btn ghost magnetic" href="#" onclick="alert('Add your CV.pdf and link it here!'); return false;">Download CV</a>
+        </div>
+      </div>
+      <div class="portrait tilt" aria-hidden="true">
+        <img alt="Abstract landscape" src="data:image/svg+xml;utf8,<?xml version='1.0' encoding='UTF-8'?><svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%236ECBFF'/><stop offset='100%' stop-color='%23BE78FF'/></linearGradient></defs><rect width='100%' height='100%' fill='%2314141C'/><circle cx='300' cy='200' r='240' fill='url(%23g)' opacity='0.65'/><circle cx='900' cy='650' r='320' fill='url(%23g)' opacity='0.35'/><path d='M0,650 C200,620 400,700 600,670 C800,640 1000,690 1200,660 L1200,800 L0,800 Z' fill='%23ffffff' opacity='0.05'/></svg>"/>
+        <div class="overlay"></div>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2>About</h2>
+      <p class="lead">I enjoy systems programming, graphics, and data structures. Recently: a GLFW + OpenGL terrain viewer with picking & pose estimation (OpenCV), and OS work in xv6 (Peterson locks, shared memory). I'm comfortable shipping in C++/Python/Java and designing efficient, well‑tested components.</p>
+    </section>
+
+    <section id="projects">
+      <h2>Projects</h2>
+      <div class="grid">
+        <article class="card tilt">
+          <h3>OpenGL Terrain Viewer</h3>
+          <p>Dual‑view renderer (GLFW), Delaunay terrain, 2D↔3D picking, and camera pose estimation via solvePnPRansac.</p>
+          <span class="badge">C++</span><span class="badge">OpenGL</span><span class="badge">OpenCV</span>
+        </article>
+        <article class="card tilt">
+          <h3>xv6 Sync & Shared Memory</h3>
+          <p>Enhanced Peterson lock + tournament tree; user‑space logging with shared pages and atomic writes.</p>
+          <span class="badge">C</span><span class="badge">OS</span><span class="badge">Concurrency</span>
+        </article>
+        <article class="card tilt">
+          <h3>Networking Protocols</h3>
+          <p>STOMP‑style server (TPC & Reactor) + C++ client; robust parsing, back‑pressure, and fault handling.</p>
+          <span class="badge">Java</span><span class="badge">C++</span><span class="badge">Net</span>
+        </article>
+      </div>
+    </section>
+
+    <section id="skills">
+      <h2>Skills</h2>
+      <div class="skills">
+        <div class="chip">C++17/20</div>
+        <div class="chip">OpenGL</div>
+        <div class="chip">OpenCV</div>
+        <div class="chip">Python</div>
+        <div class="chip">Java</div>
+        <div class="chip">Algorithms & DS</div>
+        <div class="chip">Operating Systems</div>
+        <div class="chip">Networking</div>
+        <div class="chip">Git</div>
+      </div>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p class="lead">Like the vibe? Let's talk.</p>
+      <form id="contactForm" class="card" onsubmit="return sendMail(event)">
+        <label>
+          <div>Name</div>
+          <input required name="name" placeholder="Your name" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit" />
+        </label>
+        <div style="height:10px"></div>
+        <label>
+          <div>Email</div>
+          <input required type="email" name="email" placeholder="you@example.com" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit" />
+        </label>
+        <div style="height:10px"></div>
+        <label>
+          <div>Message</div>
+          <textarea required name="message" rows="5" placeholder="Hey Abed, I loved your work on…" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit"></textarea>
+        </label>
+        <div style="height:12px"></div>
+        <button class="btn primary magnetic" type="submit">Send</button>
+      </form>
+    </section>
+
+    <footer>
+      © <span id="year"></span> • Built with pure HTML/CSS/JS + lots of ❤️
+    </footer>
+  </main>
+
+  <script>
+    // ===============================
+    // Utilities
+    // ===============================
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // Current year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // ===============================
+    // Particle background (lightweight)
+    // ===============================
+    (function(){
+      const canvas = document.getElementById('particles');
+      const ctx = canvas.getContext('2d');
+      let w, h, dpr, particles, mouse={x:0,y:0};
+
+      function resize(){
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = canvas.width = Math.floor(innerWidth * dpr);
+        h = canvas.height = Math.floor(innerHeight * dpr);
+        canvas.style.width = innerWidth + 'px';
+        canvas.style.height = innerHeight + 'px';
+        makeParticles();
+      }
+      window.addEventListener('resize', resize, {passive:true});
+
+      function makeParticles(){
+        const count = Math.round((innerWidth * innerHeight) / 28000); // scales with viewport
+        particles = Array.from({length: count}, () => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - .5) * .15 * dpr,
+          vy: (Math.random() - .5) * .15 * dpr,
+          r: (Math.random() * 1.6 + .5) * dpr,
+          a: Math.random() * Math.PI*2
+        }));
+      }
+
+      window.addEventListener('pointermove', e => {
+        mouse.x = e.clientX * dpr; mouse.y = e.clientY * dpr;
+      }, {passive:true});
+
+      function tick(){
+        ctx.clearRect(0,0,w,h);
+        for(const p of particles){
+          // gentle motion
+          p.x += p.vx + Math.cos(p.a) * .02; p.y += p.vy + Math.sin(p.a) * .02; p.a += 0.002;
+          // wrap
+          if(p.x < -10) p.x = w+10; if(p.x > w+10) p.x = -10; if(p.y < -10) p.y = h+10; if(p.y > h+10) p.y = -10;
+          // mouse repulsion
+          const dx = p.x - mouse.x, dy = p.y - mouse.y; const dist2 = dx*dx + dy*dy;
+          if(dist2 < (180*dpr)*(180*dpr)){
+            const f = 1 - dist2 / ((180*dpr)*(180*dpr));
+            p.x += dx * 0.015 * f; p.y += dy * 0.015 * f;
+          }
+          // draw
+          ctx.globalAlpha = .6;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fill();
+        }
+        requestAnimationFrame(tick);
+      }
+
+      resize(); tick();
+    })();
+
+    // ===============================
+    // Cursor Blob (smooth follower)
+    // ===============================
+    (function(){
+      const blob = document.getElementById('blob');
+      let targetX = innerWidth/2, targetY = innerHeight/2, x = targetX, y = targetY;
+
+      window.addEventListener('pointermove', e => { targetX = e.clientX; targetY = e.clientY; }, {passive:true});
+      function animate(){ x = lerp(x, targetX, .12); y = lerp(y, targetY, .12); blob.style.transform = `translate(${x-110}px, ${y-110}px)`; requestAnimationFrame(animate); }
+      animate();
+    })();
+
+    // ===============================
+    // Tilt + Parallax
+    // ===============================
+    (function(){
+      const tiltElements = Array.from(document.querySelectorAll('.tilt'));
+      const parallaxEls = Array.from(document.querySelectorAll('.parallax'));
+
+      function handleTilt(el, e){
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;   // 0..1
+        const py = (e.clientY - r.top) / r.height;  // 0..1
+        const rx = (py - .5) * -12; // deg
+        const ry = (px - .5) * 12;
+        el.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+      }
+      tiltElements.forEach(el => {
+        el.addEventListener('pointermove', e => handleTilt(el, e));
+        el.addEventListener('pointerleave', () => el.style.transform = 'translateZ(0)');
+      });
+
+      // Window parallax for hero texts
+      let nx=0, ny=0, tx=0, ty=0;
+      window.addEventListener('pointermove', e => {
+        nx = (e.clientX / innerWidth - .5); // -0.5..0.5
+        ny = (e.clientY / innerHeight - .5);
+      }, {passive:true});
+      (function step(){
+        tx = lerp(tx, nx, .08); ty = lerp(ty, ny, .08);
+        parallaxEls.forEach(el => {
+          const d = Number(el.dataset.depth||6);
+          el.style.transform = `translate3d(${(-tx*d)}px, ${(-ty*d)}px, 0)`;
+        });
+        requestAnimationFrame(step);
+      })();
+    })();
+
+    // ===============================
+    // Magnetic buttons
+    // ===============================
+    (function(){
+      document.querySelectorAll('.magnetic').forEach(btn => {
+        let r;
+        btn.addEventListener('pointerenter', () => r = btn.getBoundingClientRect());
+        btn.addEventListener('pointermove', e => {
+          const x = e.clientX - r.left - r.width/2;
+          const y = e.clientY - r.top - r.height/2;
+          btn.style.transform = `translate(${x*0.1}px, ${y*0.1}px)`;
+        });
+        btn.addEventListener('pointerleave', () => { btn.style.transform = ''; });
+      });
+    })();
+
+    // ===============================
+    // Mailto fallback for contact form
+    // ===============================
+    function sendMail(ev){
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const name = fd.get('name');
+      const email = fd.get('email');
+      const msg = fd.get('message');
+      const subject = encodeURIComponent(`Portfolio contact from ${name}`);
+      const body = encodeURIComponent(`${msg}\n\n— ${name} (${email})`);
+      window.location.href = `mailto:you@example.com?subject=${subject}&body=${body}`;
+      return false;
+    }
+  </script>
+</body>
+</html>
