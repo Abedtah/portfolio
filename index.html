@@ -413,8 +413,55 @@
       return false;
     }
   </script>
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<script>
+  // Footer year
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Initialize EmailJS with your PUBLIC KEY (from EmailJS dashboard)
+  emailjs.init("4BjsZL9FdsturtCm6"); 
+
+  async function sendMail(e){
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+
+    // Optional honeypot to reduce spam (add hidden input named "website" in the form)
+    const trap = form.querySelector('[name="website"]');
+    if (trap && trap.value) return false;
+
+    // UI: show sending state
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+
+    // These keys must match your EmailJS template variables
+    const params = {
+      from_name: form.name.value,
+      reply_to: form.email.value,
+      message: form.message.value
+    };
+
+    try {
+      await emailjs.send("service_kdir8yl", "template_rdt52fi", params);
+      btn.textContent = "Sent ✅";
+      form.reset();
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
+    } catch (err) {
+      console.error("EmailJS error:", err);
+      alert("Could not send. Please try again later.");
+      btn.textContent = original;
+      btn.disabled = false;
+    }
+    return false;
+  }
+</script>
+
 </body>
 </html>
+
 
 
 
